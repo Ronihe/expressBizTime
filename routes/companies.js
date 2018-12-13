@@ -14,20 +14,20 @@ router.get('/', async function(req, res, next) {
   }
 });
 
-router.get('/:code', async function(req, res, next) {
-  try {
-    let code = req.params.code;
-    console.log(code);
-    //prevent sql injection
-    const results = await db.query(`SELECT * FROM companies WHERE code = $1`, [
-      code
-    ]);
-    return res.json(results.rows[0]);
-  } catch (err) {
-    console.log('error');
-    return next(err);
-  }
-});
+// router.get('/:code', async function(req, res, next) {
+//   try {
+//     let code = req.params.code;
+//     console.log(code);
+//     //prevent sql injection
+//     const results = await db.query(`SELECT * FROM companies WHERE code = $1`, [
+//       code
+//     ]);
+//     return res.json(results.rows[0]);
+//   } catch (err) {
+//     console.log('error');
+//     return next(err);
+//   }
+// });
 
 router.post('/', async function(req, res, next) {
   try {
@@ -66,6 +66,30 @@ router.delete('/:code', async function(req, res, next) {
       code
     ]);
     return res.json({ status: 'deleted' });
+  } catch (err) {
+    //should return 404 if not found
+    return next(err);
+  }
+});
+
+// Return obj of company: {company: {code, name, description, invoices: [id, ...]}}
+router.get('/:code', async function(req, res, next) {
+  try {
+    let code = req.params.code;
+    console.log(code);
+    let result = await db.query(
+      `SELECT *
+        FROM companies AS c 
+        LEFT JOIN invoices AS i
+        ON c.code = i.comp_code
+        WHERE code = $1;`,
+      [code]
+    );
+    console.log(result.rows);
+    let { name, description } = result.rows[0];
+    let invoices = result.rows.map(r => [r.id, r.amt]);
+
+    return res.json({ code, name, description, invoices });
   } catch (err) {
     //should return 404 if not found
     return next(err);
