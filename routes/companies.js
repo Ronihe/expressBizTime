@@ -1,6 +1,7 @@
 const db = require('../db');
 const express = require('express');
 const router = express.Router();
+const slugify = require('slugify');
 
 //Returns list of companies, like {companies: [{code, name}, ...]}
 // need to use the async
@@ -29,6 +30,7 @@ router.get('/', async function(req, res, next) {
 //   }
 // });
 
+// Adding new company
 router.post('/', async function(req, res, next) {
   try {
     const { code, name, description } = req.body;
@@ -43,9 +45,20 @@ router.post('/', async function(req, res, next) {
     return next(err);
   }
 });
+
+// Edit existing company.
 router.put('/:code', async function(req, res, next) {
   try {
     let code = req.params.code;
+    code = slugify(code);
+    let checkRes = await db.query(`SELECT * FROM companies WHERE code = $1`, [
+      code
+    ]);
+    if (checkRes.rows.length === 0) {
+      let err = new Error('Invoice not found');
+      err.status = 404;
+      throw err;
+    }
     const { name, description } = req.body;
     const result = await db.query(
       `UPDATE companies SET name=$2, description=$3
@@ -59,6 +72,8 @@ router.put('/:code', async function(req, res, next) {
     return next(err);
   }
 });
+
+// Delete company
 router.delete('/:code', async function(req, res, next) {
   try {
     let code = req.params.code;

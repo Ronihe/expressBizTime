@@ -53,12 +53,42 @@ router.post('/', async function(req, res, next) {
 router.put('/:id', async function(req, res, next) {
   try {
     let id = req.params.id;
-    const { comp_code, amt, paid, paid_date } = req.body;
+    const checkRes = await db.query(`SELECT * FROM invoices WHERE id = $1`, [
+      id
+    ]);
+    if (checkRes.rows.length === 0) {
+      let err = new Error('Invoice not found');
+      err.status = 404;
+      throw err;
+    }
+    const { amt, userPaid } = req.body;
+    // checking user input and database for status of paid & paid_date
+    let paid;
+    let paid_date;
+    // if paid === true -> paid-date = today
+    if (userPaid === 'paid') {
+      paid = true;
+      paid_date = '2018-12-14';
+      console.log(paid_date);
+    } else if (userPaid === 'unpaid') {
+      paid = false;
+      paid_date = null;
+    } else {
+      let paidQuery = await db.query(
+        `SELECT paid_date, paid 
+                FROM invoices 
+                WHERE id = $1`,
+        [id]
+      );
+      paid_date = paidQuery.rows[0].paid_date;
+      paid = paidQuery.rows[0].paid;
+    }
+    console.log(paid);
     const result = await db.query(
-      `UPDATE invoices SET comp_code=$2, amt=$3, paid=$4, paid_date=$5
+      `UPDATE invoices SET amt=$2, paid=$3, paid_date=$4
           WHERE id=$1
           RETURNING id, comp_code, amt, paid, add_date, paid_date`,
-      [id, comp_code, amt, paid, paid_date]
+      [id, amt, paid, paid_date]
     );
     console.log(result.rows);
     return res.json(result.rows[0]);
